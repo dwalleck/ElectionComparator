@@ -32,10 +32,43 @@ namespace ElectionComparitor
             return "R";
         }
 
-        //public record DifferenceAttributes { public string Operator { get; init; } string Color; }
-        public record DifferenceAttributes { public string Operator { get; init; } public string Color { get; init; } }
+        public record DifferenceAttributes
+        {
+            public string Operator { get; init; }
+            public string Color { get; init; }
+        }
+
+        public record RawElectionResults
+        {
+            public List<ElectionComparitor.Models.Data2020.County> rawData2020 { get; init; }
+            public VoteResponse rawData2016 { get; init; }
+        }
 
         private static string CountyWasFlipped(string winner2016, string winner2020) => winner2016 != winner2020 ? "Yes" : "No";
+
+        private static async Task<RawElectionResults> GetElectionDataFromWeb(string state)
+        {
+            var client = new HttpClient();
+            var data2020 = new List<ElectionComparitor.Models.Data2020.County>();
+            VoteResponse data2016 = null;
+
+            try
+            {
+                data2020 = await client.GetFromJsonAsync<List<ElectionComparitor.Models.Data2020.County>>(
+                    $"https://politics-elex-results.data.api.cnn.io/results/view/2020-county-races-PG-{state}.json"
+                ).ConfigureAwait(false);
+                data2016 = await client.GetFromJsonAsync<VoteResponse>(
+                    $"https://data.cnn.com/ELECTION/2016/{state}/county/P_county.json"
+                ).ConfigureAwait(false);
+                return new RawElectionResults { rawData2016 = data2016, rawData2020 = data2020 };
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to retrieve election data: {ex.Message}");
+                throw;
+            }
+        }
 
         public static int Main(string[] args)
         {
@@ -49,11 +82,10 @@ namespace ElectionComparitor
 
             rootCommand.Handler = CommandHandler.Create<string>(async (state) =>
             {
-                var client = new HttpClient();
-                var resp2020 = await client.GetFromJsonAsync<List<ElectionComparitor.Models.Data2020.County>>(
-                    $"https://politics-elex-results.data.api.cnn.io/results/view/2020-county-races-PG-{state.ToUpper()}.json"
-                );
-                var counties = resp2020.ConvertAll(c => {
+                var rawResults = await GetElectionDataFromWeb(state.ToUpper());
+
+
+                var counties = rawResults.rawData2020.ConvertAll(c => {
                     var county = new CountyResult
                     {
                         Name = c.Name,
@@ -68,10 +100,8 @@ namespace ElectionComparitor
                     return county;
                 });
 
-                var resp2016 = await client.GetFromJsonAsync<VoteResponse>(
-                    $"https://data.cnn.com/ELECTION/2016/{state.ToUpper()}/county/P_county.json"
-                );
-                foreach (var r in resp2016.Counties)
+                
+                foreach (var r in rawResults.rawData2016.Counties)
                 {
                     var county = counties.Where(c => c.Name == r.Name).FirstOrDefault();
                     county.Elections[Elections.Presidential2016] = new Election();

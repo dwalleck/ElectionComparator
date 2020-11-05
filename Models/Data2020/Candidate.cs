@@ -27,5 +27,8 @@ namespace ElectionComparitor.Models.Data2020
 
         [JsonPropertyName("candidates")]
         public List<Candidate> Candidates { get; set; }
+
+        [JsonPropertyName("percentReporting")]
+        public int PercentReporting { get; set; }
     }
 }

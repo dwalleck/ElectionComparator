@@ -11,12 +11,33 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic.CompilerServices;
 
 namespace ElectionComparitor
 {
     class Program
     {
-        static int Main(string[] args)
+        private static decimal PercentChange(int originalValue, int newValue)
+        {
+            decimal change = ((newValue - originalValue) / (decimal) originalValue) * 100;
+            return Math.Round(change, 2);
+        }
+
+        private static string DetermineWinner(CountyResult county, Elections election)
+        {
+            if (county.Elections[election].Results["D"] > county.Elections[election].Results["R"])
+            {
+                return "D";
+            }
+            return "R";
+        }
+
+        //public record DifferenceAttributes { public string Operator { get; init; } string Color; }
+        public record DifferenceAttributes { public string Operator { get; init; } public string Color { get; init; } }
+
+        private static string CountyWasFlipped(string winner2016, string winner2020) => winner2016 != winner2020 ? "Yes" : "No";
+
+        public static int Main(string[] args)
         {
             var rootCommand = new RootCommand
             {
@@ -35,7 +56,8 @@ namespace ElectionComparitor
                 var counties = resp2020.ConvertAll(c => {
                     var county = new CountyResult
                     {
-                        Name = c.Name
+                        Name = c.Name,
+                        PercentReporting = c.PercentReporting
                     };
 
                     county.Elections[Elections.Presidential2020] = new Election();
@@ -60,24 +82,41 @@ namespace ElectionComparitor
                 }
 
                 var grid = new Table { Border = TableBorder.Rounded };
-                grid.AddColumn(new TableColumn("[grey]County[/]") { NoWrap = true });
-                grid.AddColumn(new TableColumn("[red]Rep. 2020 votes[/]") { NoWrap = true });
-                grid.AddColumn(new TableColumn("[red]Rep. 2016 delta[/]") { NoWrap = true });
-                grid.AddColumn(new TableColumn("[blue]Dem. 2020 votes[/]") { NoWrap = true });
-                grid.AddColumn(new TableColumn("[blue]Dem. 2016 delta[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]County[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]% Reporting[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]Rep. 2020 votes[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]% Change from 2016[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]Dem. 2020 votes[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]% Change from 2016[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]Flipped?[/]") { NoWrap = true });
 
                 foreach (var c in counties)
                 {
-                    var rDiff = c.Elections[Elections.Presidential2020].Results["R"] - c.Elections[Elections.Presidential2016].Results["R"];
-                    var rDiffOpp = rDiff > 0 ? "+" : "";
-                    var dDiff = c.Elections[Elections.Presidential2020].Results["D"] - c.Elections[Elections.Presidential2016].Results["D"];
-                    var dDiffOpp = dDiff > 0 ? "+" : "";
+                    var rDiff = PercentChange(
+                        c.Elections[Elections.Presidential2016].Results["R"],
+                        c.Elections[Elections.Presidential2020].Results["R"]
+                    );
+                    var rPercentAttrs = rDiff > 0
+                        ? new DifferenceAttributes { Operator = "+", Color = "red1"}
+                        : new DifferenceAttributes { Operator = "", Color = "red3"};
+                    var dDiff = PercentChange(
+                        c.Elections[Elections.Presidential2016].Results["D"],
+                        c.Elections[Elections.Presidential2020].Results["D"]
+                    );
+                    var dPercentAttrs = dDiff > 0
+                        ? new DifferenceAttributes { Operator = "+", Color = "dodgerblue1"}
+                        : new DifferenceAttributes { Operator = "", Color = "dodgerblue2"};
+                    var winner2016 = DetermineWinner(c, Elections.Presidential2016);
+                    var winner2020 = DetermineWinner(c, Elections.Presidential2020);
+                    var countyNameColor = winner2020 == "R" ? "red1" : "dodgerblue1";
                     grid.AddRow(
-                        $"[grey]{c.Name}[/]",
-                        $"[red]{c.Elections[Elections.Presidential2020].Results["R"]}[/]",
-                        $"[red]{rDiffOpp}{rDiff}[/]",
+                        $"[{countyNameColor}]{c.Name}[/]",
+                        $"[white]{c.PercentReporting}[/]",
+                        $"[red1]{c.Elections[Elections.Presidential2020].Results["R"]}[/]",
+                        $"[{rPercentAttrs.Color}]{rPercentAttrs.Operator}{rDiff}%[/]",
                         $"[blue]{c.Elections[Elections.Presidential2020].Results["D"]}[/]",
-                        $"[blue]{dDiffOpp}{dDiff}[/]"
+                        $"[{dPercentAttrs.Color}]{dPercentAttrs.Operator}{dDiff}%[/]",
+                        $"[white]{CountyWasFlipped(winner2016, winner2020)}[/]"
                     );
                 }
                 AnsiConsole.Render(grid);

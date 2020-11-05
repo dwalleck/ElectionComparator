@@ -7,6 +7,8 @@ namespace ElectionComparitor.Models
     {
         public string Name { get; set; }
 
+        public int PercentReporting { get; set; }
+
         public Dictionary<Elections, Election> Elections { get; set; } = new Dictionary<Elections, Election>();
     }
 

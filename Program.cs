@@ -82,7 +82,6 @@ namespace ElectionComparitor
                     $"https://data.cnn.com/ELECTION/2016/{state}/county/P_county.json"
                 ).ConfigureAwait(false);
                 return new RawElectionResults { rawData2016 = data2016, rawData2020 = data2020 };
-                
             }
             catch (Exception ex)
             {
@@ -115,7 +114,6 @@ namespace ElectionComparitor
                 {
                     Votes = county.Elections[Elections.Presidential2020].Results["R"],
                     PercentChange = new PercentChangez(RepublicanColors, rPercentChange)
-                    
                 },
                 DemocratData = new PartyElectionData
                 {
@@ -156,7 +154,6 @@ namespace ElectionComparitor
                     return county;
                 });
 
-                
                 foreach (var r in rawResults.rawData2016.Counties)
                 {
                     var county = counties.Where(c => c.Name == r.Name).FirstOrDefault();

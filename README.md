@@ -9,7 +9,8 @@ It also includes the percent changed for votes for each party and if the winner
 of that county flipped from the 2016 presidential election.
 
 Example Usage:
-```
+
+```powershell
 dotnet run --state WA
 ```
 

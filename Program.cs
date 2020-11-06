@@ -39,15 +39,15 @@ namespace ElectionComparitor
         public record PartyElectionData
         {
             public int Votes { get; set; }
-            public PercentChangez PercentChange { get; set; }
+            public PercentChange PercentChange { get; set; }
         }
 
-        public class PercentChangez
+        public class PercentChange
         {
             public PartyColorTheme _textColors;
             public decimal _value;
 
-            public PercentChangez(PartyColorTheme textColors, decimal value)
+            public PercentChange(PartyColorTheme textColors, decimal value)
             {
                 _textColors = textColors;
                 _value = value;
@@ -70,8 +70,8 @@ namespace ElectionComparitor
 
         public record RawElectionResults
         {
-            public List<ElectionComparator.ElectionData.Format2020.County> rawData2020 { get; init; }
-            public ElectionResults rawData2016 { get; init; }
+            public List<ElectionComparator.ElectionData.Format2020.County> RawData2020 { get; init; }
+            public ElectionResults RawData2016 { get; init; }
         }
 
         private static string CountyWasFlipped(string winner2016, string winner2020) => winner2016 != winner2020 ? "Yes" : "No";
@@ -87,7 +87,7 @@ namespace ElectionComparitor
                 var data2016 = await client.GetFromJsonAsync<ElectionResults>(
                     $"https://data.cnn.com/ELECTION/2016/{state}/county/P_county.json"
                 ).ConfigureAwait(false);
-                return new RawElectionResults { rawData2016 = data2016, rawData2020 = data2020 };
+                return new RawElectionResults { RawData2016 = data2016, RawData2020 = data2020 };
             }
             catch (Exception ex)
             {
@@ -119,12 +119,12 @@ namespace ElectionComparitor
                 RepublicanData = new PartyElectionData
                 {
                     Votes = county.Elections[Elections.Presidential2020].Results["R"],
-                    PercentChange = new PercentChangez(RepublicanColors, rPercentChange)
+                    PercentChange = new PercentChange(RepublicanColors, rPercentChange)
                 },
                 DemocratData = new PartyElectionData
                 {
                     Votes = county.Elections[Elections.Presidential2020].Results["D"],
-                    PercentChange = new PercentChangez(DemocratColors, dPercentChange)
+                    PercentChange = new PercentChange(DemocratColors, dPercentChange)
                 },
                 WasCountyFlipped = CountyWasFlipped(winner2016, winner2020)
             };
@@ -151,7 +151,7 @@ namespace ElectionComparitor
                 }
 
                 var rawResults = await GetElectionDataFromWeb(state.ToUpper());
-                var counties = rawResults.rawData2020.ConvertAll(c => {
+                var counties = rawResults.RawData2020.ConvertAll(c => {
                     var county = new CountyResults
                     {
                         Name = c.Name,
@@ -166,7 +166,7 @@ namespace ElectionComparitor
                     return county;
                 });
 
-                foreach (var r in rawResults.rawData2016.Counties)
+                foreach (var r in rawResults.RawData2016.Counties)
                 {
                     var county = counties.Where(c => c.Name == r.Name).FirstOrDefault();
                     county.Elections[Elections.Presidential2016] = new Election();

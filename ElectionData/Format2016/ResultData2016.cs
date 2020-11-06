@@ -1,9 +1,13 @@
-using System.Text.Json.Serialization;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
-namespace ElectionComparitor.Models.Data2016
+namespace ElectionComparator.ElectionData.Format2016
 {
-    public class VoteResponse
+    public class ElectionResults
     {
         [JsonPropertyName("counties")]
         public List<County> Counties { get; set; }

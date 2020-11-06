@@ -1,9 +1,11 @@
-using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
-namespace ElectionComparitor.Models.Data2020
+namespace ElectionComparator.ElectionData.Format2020
 {
     public class Candidate
     {

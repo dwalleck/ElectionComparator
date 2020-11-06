@@ -2,16 +2,17 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
-using ElectionComparitor.Models.Data2020;
-using ElectionComparitor.Models.Data2016;
 using System.Linq;
-using ElectionComparitor.Models;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.CompilerServices;
+using ElectionComparator;
+using static ElectionComparator.PartyColors;
+using ElectionComparator.ElectionData.Format2016;
+using ElectionComparator.ElectionData.Format2020;
 
 namespace ElectionComparitor
 {
@@ -32,30 +33,18 @@ namespace ElectionComparitor
             return "R";
         }
 
-        public record DifferenceAttributes
-        {
-            public string Operator { get; init; }
-            public string Color { get; init; }
-        }
-
         public record PartyElectionData
         {
             public int Votes { get; set; }
             public PercentChangez PercentChange { get; set; }
         }
 
-        public record PercentageColors
-        {
-            public string Positive { get; set; }
-            public string Negative { get; set; }
-        }
-
         public class PercentChangez
         {
-            public PercentageColors _textColors;
+            public PartyColorTheme _textColors;
             public decimal _value;
 
-            public PercentChangez(PercentageColors textColors, decimal value)
+            public PercentChangez(PartyColorTheme textColors, decimal value)
             {
                 _textColors = textColors;
                 _value = value;
@@ -80,8 +69,8 @@ namespace ElectionComparitor
 
         public record RawElectionResults
         {
-            public List<ElectionComparitor.Models.Data2020.County> rawData2020 { get; init; }
-            public VoteResponse rawData2016 { get; init; }
+            public List<ElectionComparator.ElectionData.Format2020.County> rawData2020 { get; init; }
+            public ElectionResults rawData2016 { get; init; }
         }
 
         private static string CountyWasFlipped(string winner2016, string winner2020) => winner2016 != winner2020 ? "Yes" : "No";
@@ -89,15 +78,12 @@ namespace ElectionComparitor
         private static async Task<RawElectionResults> GetElectionDataFromWeb(string state)
         {
             var client = new HttpClient();
-            var data2020 = new List<ElectionComparitor.Models.Data2020.County>();
-            VoteResponse data2016 = null;
-
             try
             {
-                data2020 = await client.GetFromJsonAsync<List<ElectionComparitor.Models.Data2020.County>>(
+                var data2020 = await client.GetFromJsonAsync<List<ElectionComparator.ElectionData.Format2020.County>>(
                     $"https://politics-elex-results.data.api.cnn.io/results/view/2020-county-races-PG-{state}.json"
                 ).ConfigureAwait(false);
-                data2016 = await client.GetFromJsonAsync<VoteResponse>(
+                var data2016 = await client.GetFromJsonAsync<ElectionResults>(
                     $"https://data.cnn.com/ELECTION/2016/{state}/county/P_county.json"
                 ).ConfigureAwait(false);
                 return new RawElectionResults { rawData2016 = data2016, rawData2020 = data2020 };
@@ -114,21 +100,18 @@ namespace ElectionComparitor
         {
             var winner2016 = DetermineWinner(county, Elections.Presidential2016);
             var winner2020 = DetermineWinner(county, Elections.Presidential2020);
-            var countyNameColor = winner2020 == "R" ? "red1" : "dodgerblue1";
-            PercentageColors democratColors = new PercentageColors
-            {
-                Positive = "dodgerblue1",
-                Negative = "dodgerblue2"
-            };
+            var countyNameColor = winner2020 == "R" ? RepublicanColors.Neutral : DemocratColors.Neutral;
 
-            PercentageColors republicanColors = new PercentageColors
-            {
-                Positive = "red1",
-                Negative = "red3"
-            };
+            
 
-            var rPercentChange = PercentChange(county.Elections[Elections.Presidential2016].Results["R"], county.Elections[Elections.Presidential2020].Results["R"]);
-            var dPercentChange = PercentChange(county.Elections[Elections.Presidential2016].Results["D"], county.Elections[Elections.Presidential2020].Results["D"]);
+            var rPercentChange = PercentChange(
+                county.Elections[Elections.Presidential2016].Results["R"],
+                county.Elections[Elections.Presidential2020].Results["R"]
+            );
+            var dPercentChange = PercentChange(
+                county.Elections[Elections.Presidential2016].Results["D"],
+                county.Elections[Elections.Presidential2020].Results["D"]
+            );
 
             var data = new CountyRowData
             {
@@ -138,13 +121,13 @@ namespace ElectionComparitor
                 RepublicanData = new PartyElectionData
                 {
                     Votes = county.Elections[Elections.Presidential2020].Results["R"],
-                    PercentChange = new PercentChangez(republicanColors, rPercentChange)
+                    PercentChange = new PercentChangez(RepublicanColors, rPercentChange)
                     
                 },
                 DemocratData = new PartyElectionData
                 {
                     Votes = county.Elections[Elections.Presidential2020].Results["D"],
-                    PercentChange = new PercentChangez(democratColors, dPercentChange)
+                    PercentChange = new PercentChangez(DemocratColors, dPercentChange)
                 },
                 WasCountyFlipped = CountyWasFlipped(winner2016, winner2020)
             };
@@ -236,14 +219,11 @@ namespace ElectionComparitor
                     grid.AddRow(
                         $"[{row.CountyTextColor}]{row.CountyName}[/]",
                         $"[white]{row.PercentReporting}[/]",
-                        $"[red1]{row.RepublicanData.Votes}[/]",
+                        $"[{RepublicanColors.Neutral}]{row.RepublicanData.Votes}[/]",
                         $"{row.RepublicanData.PercentChange.GetFormatttedPercentage}",
-                        $"[dodgerblue1]{row.DemocratData.Votes}[/]",
+                        $"[{DemocratColors.Neutral}]{row.DemocratData.Votes}[/]",
                         $"{row.DemocratData.PercentChange.GetFormatttedPercentage}",
                         $"[white]{row.WasCountyFlipped}[/]"
-                    //$"[blue]{c.Elections[Elections.Presidential2020].Results["D"]}[/]",
-                    //$"[{dPercentAttrs.Color}]{dPercentAttrs.Operator}{dDiff}%[/]",
-                    //$"[white]{CountyWasFlipped(winner2016, winner2020)}[/]"
                     );
                 }
                 AnsiConsole.Render(grid);

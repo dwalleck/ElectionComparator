@@ -15,6 +15,12 @@ namespace ElectionComparitor
 {
     class Program
     {
+        private static bool StateIsValid(string input)
+        {
+            var states = new List<string> { "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY" };
+            return states.Contains(input.ToUpper());
+        }
+
         private static decimal CalculatePercentChange(int originalValue, int newValue)
         {
             decimal change = ((newValue - originalValue) / (decimal) originalValue) * 100;
@@ -85,7 +91,7 @@ namespace ElectionComparitor
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to retrieve election data: {ex.Message}");
+                Console.Error.WriteLine($"Failed to retrieve election data: {ex.Message}");
                 throw;
             }
         }
@@ -138,6 +144,12 @@ namespace ElectionComparitor
 
             rootCommand.Handler = CommandHandler.Create<string>(async (state) =>
             {
+                if (!StateIsValid(state))
+                {
+                    Console.Error.WriteLine($"{state} is not a valid US state code.");
+                    Environment.Exit(-1);
+                }
+
                 var rawResults = await GetElectionDataFromWeb(state.ToUpper());
                 var counties = rawResults.rawData2020.ConvertAll(c => {
                     var county = new CountyResults

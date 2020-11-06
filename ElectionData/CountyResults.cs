@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace ElectionComparitor.Models
+namespace ElectionComparitor
 {
-    public class CountyResult
+    public class CountyResults
     {
         public string Name { get; set; }
 
@@ -15,8 +15,7 @@ namespace ElectionComparitor.Models
     public enum Elections
     {
         Presidential2016,
-        Presidential2020,
-        Senate2018
+        Presidential2020
     }
 
     public enum Parties

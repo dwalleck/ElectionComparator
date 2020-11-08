@@ -62,10 +62,13 @@ namespace ElectionComparitor
         {
             public string CountyName { get; set; }
             public string CountyTextColor { get; set; }
+            public string Winner { get; set; }
             public int PercentReporting { get; set; }
             public PartyElectionData RepublicanData { get; set; }
             public PartyElectionData DemocratData { get; set; }
             public string WasCountyFlipped { get; set; }
+            public int TotalVotes { get; set; }
+            public decimal PercentOfStateVotes { get; set; }
         }
 
         public record RawElectionResults
@@ -96,7 +99,7 @@ namespace ElectionComparitor
             }
         }
 
-        private static CountyRowData CreateCountyRow(CountyResults county)
+        private static CountyRowData CreateCountyRow(CountyResults county, decimal totalStateVotes)
         {
             var winner2016 = DetermineWinner(county, Elections.Presidential2016);
             var winner2020 = DetermineWinner(county, Elections.Presidential2020);
@@ -114,6 +117,7 @@ namespace ElectionComparitor
             var data = new CountyRowData
             {
                 CountyName = county.Name,
+                Winner = winner2020,
                 CountyTextColor = countyNameColor,
                 PercentReporting = county.PercentReporting,
                 RepublicanData = new PartyElectionData
@@ -126,7 +130,9 @@ namespace ElectionComparitor
                     Votes = county.Elections[Elections.Presidential2020].Results["D"],
                     PercentChange = new PercentChange(DemocratColors, dPercentChange)
                 },
-                WasCountyFlipped = CountyWasFlipped(winner2016, winner2020)
+                WasCountyFlipped = CountyWasFlipped(winner2016, winner2020),
+                PercentOfStateVotes = Math.Round(
+                    ((county.Elections[Elections.Presidential2020].Results["R"] + county.Elections[Elections.Presidential2020].Results["D"]) / totalStateVotes) * 100, 2)
             };
 
             return data;
@@ -183,11 +189,29 @@ namespace ElectionComparitor
                 grid.AddColumn(new TableColumn("[white]% Change from 2016[/]") { NoWrap = true });
                 grid.AddColumn(new TableColumn("[white]Dem. 2020 votes[/]") { NoWrap = true });
                 grid.AddColumn(new TableColumn("[white]% Change from 2016[/]") { NoWrap = true });
+                grid.AddColumn(new TableColumn("[white]% of state vote[/]") { NoWrap = true });
                 grid.AddColumn(new TableColumn("[white]Flipped?[/]") { NoWrap = true });
-
+                decimal totalStateVotes = counties.Sum(c => c.Elections[Elections.Presidential2020].Results["R"] + c.Elections[Elections.Presidential2020].Results["D"]);
+                int count = 0;
+                decimal doubleCheck = 0;
+                var countyWinners = new Dictionary<string, decimal>();
+                countyWinners["R"] =  0;
+                countyWinners["D"] = 0;
                 foreach (var county in counties)
                 {
-                    var row = CreateCountyRow(county);
+                    var row = CreateCountyRow(county, totalStateVotes);
+                    countyWinners["R"] += row.RepublicanData.PercentChange._value;
+                    countyWinners["D"] += row.DemocratData.PercentChange._value;
+
+                    if (row.PercentOfStateVotes > 1)
+                    {
+                        count++;
+                    }
+                    else
+                    {
+                        doubleCheck += row.PercentOfStateVotes;
+                    }
+
                     grid.AddRow(
                         $"[{row.CountyTextColor}]{row.CountyName}[/]",
                         $"[white]{row.PercentReporting}[/]",
@@ -195,10 +219,14 @@ namespace ElectionComparitor
                         $"{row.RepublicanData.PercentChange.FormatttedPercentage}",
                         $"[{DemocratColors.Neutral}]{row.DemocratData.Votes}[/]",
                         $"{row.DemocratData.PercentChange.FormatttedPercentage}",
+                        $"[white]{row.PercentOfStateVotes}[/]",
                         $"[white]{row.WasCountyFlipped}[/]"
                     );
                 }
                 AnsiConsole.Render(grid);
+                Console.WriteLine($"Counties that make up more than 1% of the vote: {count}");
+                Console.WriteLine($"{doubleCheck}");
+                Console.WriteLine($"Average increase R: {Math.Round(countyWinners["R"]/(decimal)254, 2)} {Math.Round(countyWinners["D"]/(decimal)254, 2)}");
             });
 
             return rootCommand.InvokeAsync(args).Result;
